@@ -1,0 +1,49 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build binaries
+        run: |
+          mkdir -p dist
+
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
+          tar -czf dist/runbox_${GITHUB_REF_NAME}_darwin_arm64.tar.gz -C dist runbox
+
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
+          tar -czf dist/runbox_${GITHUB_REF_NAME}_darwin_amd64.tar.gz -C dist runbox
+
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
+          tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_arm64.tar.gz -C dist runbox
+
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
+          tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_amd64.tar.gz -C dist runbox
+
+          GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
+          tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_arm.tar.gz -C dist runbox
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum *.tar.gz > checksums.txt
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
