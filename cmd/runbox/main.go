@@ -809,7 +809,17 @@ var syncCmd = &cobra.Command{
 			rsyncArgs = append(rsyncArgs, "-v")
 		}
 
-		rsyncArgs = append(rsyncArgs, localPath+"/", fmt.Sprintf("%s:%s", args[0], remotePath))
+		src := localPath
+		info, err := os.Stat(localPath)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		if info.IsDir() {
+			src = localPath + "/"
+		}
+
+		rsyncArgs = append(rsyncArgs, src, fmt.Sprintf("%s:%s", args[0], remotePath))
 
 		rsyncCmd := exec.Command("rsync", rsyncArgs...)
 		rsyncCmd.Stdin = os.Stdin
@@ -834,7 +844,7 @@ var pullCmd = &cobra.Command{
 		localPath := args[2]
 
 		rsyncArgs := []string{"-avz", "--progress"}
-		rsyncArgs = append(rsyncArgs, fmt.Sprintf("%s:%s", args[0], remotePath)+"/", localPath)
+		rsyncArgs = append(rsyncArgs, fmt.Sprintf("%s:%s", args[0], remotePath), localPath)
 
 		rsyncCmd := exec.Command("rsync", rsyncArgs...)
 		rsyncCmd.Stdin = os.Stdin
