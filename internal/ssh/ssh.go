@@ -27,16 +27,19 @@ type Opts struct {
 	Env     map[string]string
 }
 
-func sshTarget(m *config.Machine) string {
+func sshTarget(m *config.Machine, name string) string {
+	if name != "" {
+		return name
+	}
 	return m.Host
 }
 
-func buildSSHArgs(m *config.Machine, remoteCmd string, opts *Opts) []string {
+func buildSSHArgs(m *config.Machine, name string, remoteCmd string, opts *Opts) []string {
 	args := []string{"-o", "BatchMode=yes", "-o", "ConnectTimeout=10"}
 	if m.Port != 0 && m.Port != 22 {
 		args = append(args, "-p", fmt.Sprintf("%d", m.Port))
 	}
-	args = append(args, sshTarget(m))
+	args = append(args, sshTarget(m, name))
 
 	workdir := m.Workdir
 	if opts != nil && opts.Workdir != "" {
@@ -48,11 +51,11 @@ func buildSSHArgs(m *config.Machine, remoteCmd string, opts *Opts) []string {
 	return args
 }
 
-func Exec(ctx context.Context, m *config.Machine, command string, opts *Opts) (*Result, error) {
+func Exec(ctx context.Context, m *config.Machine, name string, command string, opts *Opts) (*Result, error) {
 	if opts == nil {
 		opts = &Opts{}
 	}
-	args := buildSSHArgs(m, command, opts)
+	args := buildSSHArgs(m, name, command, opts)
 
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -88,11 +91,11 @@ func Exec(ctx context.Context, m *config.Machine, command string, opts *Opts) (*
 	}, nil
 }
 
-func ExecStreaming(ctx context.Context, m *config.Machine, command string, opts *Opts) (*Result, error) {
+func ExecStreaming(ctx context.Context, m *config.Machine, name string, command string, opts *Opts) (*Result, error) {
 	if opts == nil {
 		opts = &Opts{}
 	}
-	args := buildSSHArgs(m, command, opts)
+	args := buildSSHArgs(m, name, command, opts)
 
 	timeout := opts.Timeout
 	if timeout == 0 {
@@ -125,13 +128,14 @@ func ExecStreaming(ctx context.Context, m *config.Machine, command string, opts 
 	}, nil
 }
 
-func TestConnection(m *config.Machine) (reachable bool, authMode string, err error) {
+func TestConnection(m *config.Machine, name string) (reachable bool, authMode string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
+	target := sshTarget(m, name)
 	cmd := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes",
 		"-o", "ConnectTimeout=5", "-o", "StrictHostKeyChecking=accept-new",
-		sshTarget(m), "echo ok")
+		target, "echo ok")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -142,7 +146,7 @@ func TestConnection(m *config.Machine) (reachable bool, authMode string, err err
 
 	cmd2 := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes",
 		"-o", "ConnectTimeout=5",
-		sshTarget(m), "echo ok")
+		target, "echo ok")
 	var stderr2 bytes.Buffer
 	cmd2.Stderr = &stderr2
 	err2 := cmd2.Run()
@@ -151,22 +155,23 @@ func TestConnection(m *config.Machine) (reachable bool, authMode string, err err
 		if stderrStr == "" {
 			stderrStr = stderr2.String()
 		}
-		return false, "", fmt.Errorf("cannot connect to %s\nstderr: %s", m.Host, stderrStr)
+		return false, "", fmt.Errorf("cannot connect to %s\nstderr: %s", target, stderrStr)
 	}
 
 	return true, "password", nil
 }
 
-func CanConnectBatchMode(m *config.Machine) bool {
+func CanConnectBatchMode(m *config.Machine, name string) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	target := sshTarget(m, name)
 	cmd := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes",
-		"-o", "ConnectTimeout=5", sshTarget(m), "true")
+		"-o", "ConnectTimeout=5", target, "true")
 	return cmd.Run() == nil
 }
 
-func InteractiveShell(m *config.Machine, workdir string) error {
-	args := []string{sshTarget(m)}
+func InteractiveShell(m *config.Machine, name string, workdir string) error {
+	args := []string{sshTarget(m, name)}
 	cmd := exec.Command("ssh", args...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

@@ -135,10 +135,10 @@ func RunLocal(host string) *LocalChecks {
 	return c
 }
 
-func RunRemote(m *config.Machine) *RemoteChecks {
+func RunRemote(m *config.Machine, name string) *RemoteChecks {
 	rc := &RemoteChecks{}
 
-	reachable, authMode, _ := ssh.TestConnection(m)
+	reachable, authMode, _ := ssh.TestConnection(m, name)
 	rc.Reachable = reachable
 	rc.AuthMode = authMode
 
@@ -146,22 +146,23 @@ func RunRemote(m *config.Machine) *RemoteChecks {
 		return rc
 	}
 
-	rc.PublicKeyAuth = ssh.CanConnectBatchMode(m)
+	rc.PublicKeyAuth = ssh.CanConnectBatchMode(m, name)
 
 	if !rc.PublicKeyAuth {
 		return rc
 	}
 
 	ctx := context.Background()
+	target := name
 
-	if out, err := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes", m.Host, "uname -s").Output(); err == nil {
+	if out, err := exec.CommandContext(ctx, "ssh", "-o", "BatchMode=yes", target, "uname -s").Output(); err == nil {
 		rc.OS = strings.ToLower(strings.TrimSpace(string(out)))
 	}
 
 	checkRemote := func(cmd string) bool {
 		ctx2, cancel2 := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel2()
-		c := exec.CommandContext(ctx2, "ssh", "-o", "BatchMode=yes", m.Host, "command -v "+shellQuote(cmd))
+		c := exec.CommandContext(ctx2, "ssh", "-o", "BatchMode=yes", target, "command -v "+shellQuote(cmd))
 		return c.Run() == nil
 	}
 
@@ -172,7 +173,7 @@ func RunRemote(m *config.Machine) *RemoteChecks {
 	if m.Workdir != "" {
 		ctx3, cancel3 := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel3()
-		c := exec.CommandContext(ctx3, "ssh", "-o", "BatchMode=yes", m.Host,
+		c := exec.CommandContext(ctx3, "ssh", "-o", "BatchMode=yes", target,
 			"test -d "+shellQuote(m.Workdir)+" && echo ok")
 		if out, err := c.Output(); err == nil && strings.TrimSpace(string(out)) == "ok" {
 			rc.WorkdirExists = true
@@ -184,7 +185,7 @@ func RunRemote(m *config.Machine) *RemoteChecks {
 	{
 		ctx4, cancel4 := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel4()
-		c := exec.CommandContext(ctx4, "ssh", "-o", "BatchMode=yes", m.Host,
+		c := exec.CommandContext(ctx4, "ssh", "-o", "BatchMode=yes", target,
 			"test -d ~/.runbox && echo ok")
 		if out, err := c.Output(); err == nil && strings.TrimSpace(string(out)) == "ok" {
 			rc.RunboxDirExists = true
@@ -194,7 +195,7 @@ func RunRemote(m *config.Machine) *RemoteChecks {
 	{
 		ctx5, cancel5 := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel5()
-		c := exec.CommandContext(ctx5, "ssh", "-o", "BatchMode=yes", m.Host, "echo runbox-ok")
+		c := exec.CommandContext(ctx5, "ssh", "-o", "BatchMode=yes", target, "echo runbox-ok")
 		if out, err := c.Output(); err == nil && strings.TrimSpace(string(out)) == "runbox-ok" {
 			rc.TestCommand = true
 		}
@@ -203,12 +204,12 @@ func RunRemote(m *config.Machine) *RemoteChecks {
 	return rc
 }
 
-func Run(m *config.Machine) *DoctorResult {
+func Run(m *config.Machine, name string) *DoctorResult {
 	local := RunLocal(m.Host)
-	remote := RunRemote(m)
+	remote := RunRemote(m, name)
 
 	result := &DoctorResult{
-		Machine: m.Host,
+		Machine: name,
 		Network: NetworkChecks{
 			TailscaleDetected: local.TailscaleRunning,
 			ResolvedIP:        local.ResolvedIP,
