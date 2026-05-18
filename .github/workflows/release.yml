@@ -13,48 +13,42 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        run: |
-          git clone --depth 1 --branch ${GITHUB_REF_NAME} https://github.com/${{ github.repository }}.git .
-          ls -la cmd/runbox/
+        run: git clone --depth 1 --branch ${GITHUB_REF_NAME} https://github.com/${{ github.repository }}.git repo
 
       - uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version-file: repo/go.mod
 
       - name: Build binaries
+        working-directory: repo
         run: |
           mkdir -p dist
 
           GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_darwin_arm64.tar.gz -C dist runbox
-
           rm dist/runbox
 
           GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_darwin_amd64.tar.gz -C dist runbox
-
           rm dist/runbox
 
           GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_arm64.tar.gz -C dist runbox
-
           rm dist/runbox
 
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_amd64.tar.gz -C dist runbox
-
           rm dist/runbox
 
           GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_arm.tar.gz -C dist runbox
 
       - name: Generate checksums
-        run: |
-          cd dist
-          sha256sum *.tar.gz > checksums.txt
+        working-directory: repo/dist
+        run: sha256sum *.tar.gz > checksums.txt
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
+          files: repo/dist/*
           generate_release_notes: true
