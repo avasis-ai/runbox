@@ -4,6 +4,8 @@ Turn any remote machine into an agent runtime.
 
 Run Codex, Claude Code, OpenClaw, tests, builds, and long-running jobs on your Mac mini, GPU PC, workstation, or edge box — without SSH pain.
 
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23ea4aaa?logo=github)](https://github.com/sponsors/avasis-ai) [![Release](https://img.shields.io/github/v/release/avasis-ai/runbox?include_prereleases)](https://github.com/avasis-ai/runbox/releases) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 ```
 runbox init mini --host mini --user abhay --workdir ~/project
 runbox doctor mini
@@ -28,9 +30,19 @@ For humans, this is annoying. For CLI agents (Codex, Claude Code, OpenClaw), it'
 
 ## Install
 
+One-line install:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/avasis-ai/runbox/main/install.sh | bash
+```
+
+Or with Go:
+
 ```bash
 go install github.com/avasis-ai/runbox/cmd/runbox@latest
 ```
+
+Or [download a binary](https://github.com/avasis-ai/runbox/releases) directly (macOS/Linux, arm64/amd64).
 
 Or build from source:
 
@@ -194,3 +206,15 @@ No custom daemon. No VPN. No hosted relay. Your machines, your network.
 ## License
 
 MIT
+
+---
+
+## Support Runbox
+
+If Runbox saves you from SSH pain, consider supporting its development.
+
+[![Sponsor](https://img.shields.io/badge/Sponsor-%E2%9D%A4-%23ea4aaa?logo=github)](https://github.com/sponsors/avasis-ai)
+
+Your sponsorship funds: remote daemon, web UI, team mode, fleet management, MCP server, and more. See [SPONSORS.md](SPONSORS.md) for details.
+
+*Building open-source tools takes real work. Your support keeps them free for everyone.*
