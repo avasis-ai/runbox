@@ -1,0 +1,21 @@
+# Binaries
+runbox
+*.exe
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+/dist/
+/build/
+
+# Test
+testdata/output/
