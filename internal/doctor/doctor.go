@@ -43,10 +43,12 @@ type RemoteChecks struct {
 
 type DoctorResult struct {
 	Machine          string        `json:"machine"`
+	Host             string        `json:"host"`
 	Network          NetworkChecks `json:"network"`
 	SSH              SSHChecks     `json:"ssh"`
 	Remote           RemoteChecks  `json:"remote"`
 	RecommendedFixes []string      `json:"recommendedFixes"`
+	AllGood          bool          `json:"allGood"`
 }
 
 type LocalChecks struct {
@@ -210,6 +212,7 @@ func Run(m *config.Machine, name string) *DoctorResult {
 
 	result := &DoctorResult{
 		Machine: name,
+		Host:    m.Host,
 		Network: NetworkChecks{
 			TailscaleDetected: local.TailscaleRunning,
 			ResolvedIP:        local.ResolvedIP,
@@ -242,9 +245,15 @@ func Run(m *config.Machine, name string) *DoctorResult {
 	if !local.ControlSocketDir {
 		fixes = append(fixes, "multiplex")
 	}
-	hasExisting, _ := sshconfig.HasBlock(m.Host)
+	hasExisting, _ := sshconfig.HasBlock(name)
 	if !hasExisting {
 		fixes = append(fixes, "ssh-config")
+	}
+	if local.ControlSocketDir {
+		hasExisting, _ := sshconfig.HasBlock(name)
+		if hasExisting {
+			result.SSH.Multiplexing = true
+		}
 	}
 	if remote.Reachable && remote.PublicKeyAuth {
 		if !remote.WorkdirExists || !remote.RunboxDirExists || !remote.TmuxInstalled || !remote.RsyncInstalled {
@@ -252,13 +261,15 @@ func Run(m *config.Machine, name string) *DoctorResult {
 		}
 	}
 	result.RecommendedFixes = fixes
+	result.AllGood = len(fixes) == 0
 
 	return result
 }
 
 func (r *DoctorResult) PrintText() {
 	fmt.Printf("Machine\n")
-	fmt.Printf("  Host: %s\n", r.Machine)
+	fmt.Printf("  Name: %s\n", r.Machine)
+	fmt.Printf("  Host: %s\n", r.Host)
 	fmt.Println()
 
 	fmt.Printf("Network\n")
@@ -269,27 +280,34 @@ func (r *DoctorResult) PrintText() {
 	fmt.Printf("  Tailscale: %s\n", ts)
 	fmt.Printf("  MagicDNS: %s\n", r.Network.MagicDNS)
 	if r.Network.ResolvedIP != "" {
-		fmt.Printf("  Host resolution: %s -> %s\n", r.Machine, r.Network.ResolvedIP)
+		fmt.Printf("  Host resolution: %s -> %s\n", r.Host, r.Network.ResolvedIP)
 	}
 	fmt.Println()
 
 	fmt.Printf("SSH\n")
 	fmt.Printf("  Reachable: %s\n", boolStr(r.SSH.Reachable))
-	fmt.Printf("  Auth: %s\n", r.SSH.AuthMode)
-	fmt.Printf("  Public key auth: %s\n", boolStr(r.SSH.PublicKeyAuth))
+	if r.SSH.Reachable {
+		fmt.Printf("  Auth: %s\n", r.SSH.AuthMode)
+		fmt.Printf("  Public key auth: %s\n", boolStr(r.SSH.PublicKeyAuth))
+	}
 	fmt.Printf("  ssh-agent: %s\n", boolStr(r.SSH.SSHAgent))
 	fmt.Printf("  Multiplexing: %s\n", boolStr(r.SSH.Multiplexing))
 	fmt.Println()
 
 	fmt.Printf("Remote runtime\n")
-	fmt.Printf("  OS: %s\n", r.Remote.OS)
+	if r.Remote.OS != "" {
+		fmt.Printf("  OS: %s\n", r.Remote.OS)
+	}
 	fmt.Printf("  tmux: %s\n", installedStr(r.Remote.TmuxInstalled))
 	fmt.Printf("  rsync: %s\n", installedStr(r.Remote.RsyncInstalled))
 	fmt.Printf("  workdir: %s\n", existsStr(r.Remote.WorkdirExists))
 	fmt.Printf("  ~/.runbox: %s\n", existsStr(r.Remote.RunboxDirExists))
 	fmt.Println()
 
-	if len(r.RecommendedFixes) > 0 {
+	if r.AllGood {
+		fmt.Printf("All checks passed.\n")
+		fmt.Printf("  runbox exec %s \"echo hello from $(hostname)\"\n", r.Machine)
+	} else {
 		fmt.Printf("Recommended fixes\n")
 		for i, fix := range r.RecommendedFixes {
 			fmt.Printf("  [%d] %s\n", i+1, fixDescription(fix))

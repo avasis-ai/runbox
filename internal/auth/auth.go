@@ -74,7 +74,7 @@ func AddToAgent() error {
 	return nil
 }
 
-func InstallPublicKey(m *config.Machine) error {
+func InstallPublicKey(m *config.Machine, name string) error {
 	pubKeyPath := sshconfig.KeyPubPath()
 	if _, err := os.Stat(pubKeyPath); err != nil {
 		return fmt.Errorf("public key not found: %s", pubKeyPath)
@@ -83,7 +83,7 @@ func InstallPublicKey(m *config.Machine) error {
 	if commandExists("ssh-copy-id") {
 		fmt.Printf("  Installing public key on %s...\n", m.Host)
 		fmt.Printf("  You may be prompted for the remote password.\n")
-		return ssh.CopyID(m, pubKeyPath)
+		return ssh.CopyID(m, name, pubKeyPath)
 	}
 
 	pubKey, err := os.ReadFile(pubKeyPath)
@@ -97,7 +97,7 @@ func InstallPublicKey(m *config.Machine) error {
 	return fmt.Errorf("manual key install required")
 }
 
-func SetupAuth(m *config.Machine, noPassphrase bool) error {
+func SetupAuth(m *config.Machine, name string, noPassphrase bool) error {
 	fmt.Println("Setting up SSH authentication...")
 
 	fmt.Println("\n[1/3] Generating SSH key...")
@@ -112,7 +112,7 @@ func SetupAuth(m *config.Machine, noPassphrase bool) error {
 	}
 
 	fmt.Println("\n[3/3] Installing public key on remote...")
-	if err := InstallPublicKey(m); err != nil {
+	if err := InstallPublicKey(m, name); err != nil {
 		return err
 	}
 

@@ -171,24 +171,32 @@ func CanConnectBatchMode(m *config.Machine, name string) bool {
 }
 
 func InteractiveShell(m *config.Machine, name string, workdir string) error {
-	args := []string{sshTarget(m, name)}
-	cmd := exec.Command("ssh", args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
+	var sshCmd *exec.Cmd
 	if workdir != "" {
-		fmt.Fprintf(os.Stderr, "cd %s\n", workdir)
+		sshCmd = exec.Command("ssh", "-t", sshTarget(m, name),
+			fmt.Sprintf("cd %s 2>/dev/null; exec $SHELL -l", shellQuote(workdir)))
+	} else {
+		sshCmd = exec.Command("ssh", "-t", sshTarget(m, name))
 	}
-	return cmd.Run()
+	sshCmd.Stdin = os.Stdin
+	sshCmd.Stdout = os.Stdout
+	sshCmd.Stderr = os.Stderr
+	return sshCmd.Run()
 }
 
-func CopyID(m *config.Machine, pubKeyPath string) error {
+func shellQuote(s string) string {
+	if s == "" {
+		return "''"
+	}
+	return "'" + strings.ReplaceAll(s, "'", "'\\''") + "'"
+}
+
+func CopyID(m *config.Machine, name string, pubKeyPath string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	args := []string{"-i", pubKeyPath}
-	args = append(args, fmt.Sprintf("%s@%s", m.User, m.Host))
+	target := sshTarget(m, name)
+	args := []string{"-i", pubKeyPath, target}
 
 	cmd := exec.CommandContext(ctx, "ssh-copy-id", args...)
 	cmd.Stdin = os.Stdin
