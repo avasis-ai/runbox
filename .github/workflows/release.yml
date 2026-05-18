@@ -7,13 +7,15 @@ on:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        run: |
+          git clone --depth 1 --branch ${GITHUB_REF_NAME} https://github.com/${{ github.repository }}.git .
+          ls -la cmd/runbox/
 
       - uses: actions/setup-go@v5
         with:
@@ -26,14 +28,22 @@ jobs:
           GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_darwin_arm64.tar.gz -C dist runbox
 
+          rm dist/runbox
+
           GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_darwin_amd64.tar.gz -C dist runbox
+
+          rm dist/runbox
 
           GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_arm64.tar.gz -C dist runbox
 
+          rm dist/runbox
+
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_amd64.tar.gz -C dist runbox
+
+          rm dist/runbox
 
           GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-s -w" -o dist/runbox ./cmd/runbox/
           tar -czf dist/runbox_${GITHUB_REF_NAME}_linux_arm.tar.gz -C dist runbox
